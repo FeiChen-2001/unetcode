@@ -8,7 +8,7 @@ else
 end
 
 %% 2. 数据准备
-dataPath = 'F:\CT\ImageJ\500个样本切片\DATA_100\排序（800挑出500）';
+dataPath = '';
 imageDir = fullfile(dataPath, 'Images');
 maskDir = fullfile(dataPath, 'Masks');
 
@@ -45,31 +45,31 @@ pxdsTest = subset(pxds, testIndices);
 augmenter = imageDataAugmenter(...
     'RandXReflection', true,...
     'RandYReflection', true,...
-    'RandRotation', [-30 30],...
-    'RandScale', [0.8 1.2]);
+    'RandRotation', [],...
+    'RandScale', []);
 
-inputSize = [320 320 1]; 
+inputSize = []; 
 
 dsTrain = pixelLabelImageDatastore(imdsTrain, pxdsTrain,...
     'DataAugmentation', augmenter,...
-    'OutputSize', inputSize(1:2),...
+    'OutputSize', inputSize(),...
     'OutputSizeMode', 'resize');
 
 dsVal = pixelLabelImageDatastore(imdsVal, pxdsVal,...
-    'OutputSize', inputSize(1:2),...
+    'OutputSize', inputSize(),...
     'OutputSizeMode', 'resize');
 
 %% 4. 定义CBAM U-Net模型
-numClasses = 2;
-numFiltersInit = 32;
-encoderDepth = 4;
+numClasses = ;
+numFiltersInit = ;
+encoderDepth = ;
 
 lgraph = layerGraph();
 
 inputLayer = imageInputLayer(inputSize, 'Name', 'input');
 lgraph = addLayers(lgraph, inputLayer);
 
-encoderNames = cell(encoderDepth,1);
+encoderNames = cell(encoderDepth,);
 currentLayer = 'input';
 
 % 编码器
@@ -80,9 +80,9 @@ for i = 1:encoderDepth
     relu1Name = sprintf('enc%d_relu1', i);
     relu2Name = sprintf('enc%d_relu2', i);
     
-    conv1 = convolution2dLayer(3, numFilters, 'Padding', 'same', 'Name', conv1Name);
+    conv1 = convolution2dLayer(, numFilters, 'Padding', 'same', 'Name', conv1Name);
     relu1 = reluLayer('Name', relu1Name);
-    conv2 = convolution2dLayer(3, numFilters, 'Padding', 'same', 'Name', conv2Name);
+    conv2 = convolution2dLayer(, numFilters, 'Padding', 'same', 'Name', conv2Name);
     relu2 = reluLayer('Name', relu2Name);
     
     lgraph = addLayers(lgraph, [conv1 relu1 conv2 relu2]);
@@ -96,7 +96,7 @@ for i = 1:encoderDepth
     
     if i < encoderDepth
         poolName = sprintf('pool%d', i);
-        pool = maxPooling2dLayer(2, 'Stride', 2, 'Name', poolName);
+        pool = maxPooling2dLayer(, 'Stride', , 'Name', poolName);
         lgraph = addLayers(lgraph, pool);
         lgraph = connectLayers(lgraph, cbamOut, poolName);
         currentLayer = poolName;
@@ -115,7 +115,7 @@ for i = encoderDepth-1:-1:1
     
     % 连接拼接层 (跳跃连接)
     concatName = sprintf('concat%d', i);
-    concatLayer = depthConcatenationLayer(2, 'Name', concatName);
+    concatLayer = depthConcatenationLayer(, 'Name', concatName);
     lgraph = addLayers(lgraph, concatLayer);
     lgraph = connectLayers(lgraph, encoderNames{i}, [concatName '/in1']);
     lgraph = connectLayers(lgraph, upconvName, [concatName '/in2']);
@@ -126,9 +126,9 @@ for i = encoderDepth-1:-1:1
     conv2Name = sprintf('dec%d_conv2', i);
     relu2Name = sprintf('dec%d_relu2', i);
     
-    conv1 = convolution2dLayer(3, numFilters, 'Padding', 'same', 'Name', conv1Name);
+    conv1 = convolution2dLayer(, numFilters, 'Padding', 'same', 'Name', conv1Name);
     relu1 = reluLayer('Name', relu1Name);
-    conv2 = convolution2dLayer(3, numFilters, 'Padding', 'same', 'Name', conv2Name);
+    conv2 = convolution2dLayer(, numFilters, 'Padding', 'same', 'Name', conv2Name);
     relu2 = reluLayer('Name', relu2Name);
     
     lgraph = addLayers(lgraph, [conv1 relu1 conv2 relu2]);
@@ -156,8 +156,8 @@ validationFrequency = 10; % 显式定义验证频率变量
 
 options = trainingOptions('adam',...
     'InitialLearnRate', 1e-4,...
-    'MaxEpochs', 2,...
-    'MiniBatchSize', 4,...
+    'MaxEpochs', ,...
+    'MiniBatchSize', ,...
     'ValidationData', dsVal,...
     'ValidationFrequency', validationFrequency,... % 使用已定义变量
     'Plots', 'training-progress',...
@@ -415,8 +415,8 @@ function [lgraph, cbamOutName] = cbamModule(lgraph, inputName, numChannels, bloc
     mlp2Name = [blockName '_ca_mlp2'];
     mlpReluName = [blockName '_ca_relu'];
     
-    r = 16; % 通道数缩减系数
-    mlpFeatures = max(numChannels/r, 8); % 避免太小
+    r = ; % 通道数缩减系数
+    mlpFeatures = max(numChannels/r, ); % 避免太小
     
     % MLP第一层 (numChannels -> mlpFeatures)
     mlp1LayerObj = fullyConnectedLayer(mlpFeatures, 'Name', mlp1Name);
@@ -448,7 +448,7 @@ function [lgraph, cbamOutName] = cbamModule(lgraph, inputName, numChannels, bloc
     
     % 加法层合并两个MLP输出
     addName = [blockName '_ca_add'];
-    addLayerObj = additionLayer(2, 'Name', addName);
+    addLayerObj = additionLayer(, 'Name', addName);
     lgraph = addLayers(lgraph, addLayerObj);
     lgraph = connectLayers(lgraph, avg_mlp2_out, [addName '/in1']);
     lgraph = connectLayers(lgraph, max_mlp2_out, [addName '/in2']);
@@ -461,7 +461,7 @@ function [lgraph, cbamOutName] = cbamModule(lgraph, inputName, numChannels, bloc
     
     % 通道注意力加权 - 简化实现
     mulName = [blockName '_ca_mul'];
-    mulLayerObj = functionLayer(@safeChannelAttention, 'NumInputs', 2, 'Name', mulName);
+    mulLayerObj = functionLayer(@safeChannelAttention, 'NumInputs', , 'Name', mulName);
     lgraph = addLayers(lgraph, mulLayerObj);
     lgraph = connectLayers(lgraph, inputName, [mulName '/in1']);
     lgraph = connectLayers(lgraph, sigmoidName, [mulName '/in2']);
@@ -619,3 +619,4 @@ function out = safeElementWiseMul(X, Y)
         end
     end
 end
+
