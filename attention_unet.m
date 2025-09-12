@@ -8,7 +8,7 @@ else
 end
 
 %% 2. 数据准备
-dataPath = 'F:\CT\ImageJ\500个样本切片\DATA_100\排序（800挑出500）';
+dataPath = '';
 imageDir = fullfile(dataPath, 'Images');
 maskDir = fullfile(dataPath, 'Masks');
 
@@ -45,31 +45,31 @@ pxdsTest = subset(pxds, testIndices);
 augmenter = imageDataAugmenter(...
     'RandXReflection', true,...
     'RandYReflection', true,...
-    'RandRotation', [-30 30],...
-    'RandScale', [0.8 1.2]);
+    'RandRotation', [],...
+    'RandScale', []);
 
-inputSize = [320 320 1]; 
+inputSize = []; 
 
 dsTrain = pixelLabelImageDatastore(imdsTrain, pxdsTrain,...
     'DataAugmentation', augmenter,...
-    'OutputSize', inputSize(1:2),...
+    'OutputSize', inputSize(),...
     'OutputSizeMode', 'resize');
 
 dsVal = pixelLabelImageDatastore(imdsVal, pxdsVal,...
-    'OutputSize', inputSize(1:2),...
+    'OutputSize', inputSize(),...
     'OutputSizeMode', 'resize');
 
 %% 4. 定义 Attention U-Net 模型
-numClasses = 2;
-numFiltersInit = 32;
-encoderDepth = 4;
+numClasses = ;
+numFiltersInit = ;
+encoderDepth = ;
 
 lgraph = layerGraph();
 
 inputLayer = imageInputLayer(inputSize, 'Name', 'input');
 lgraph = addLayers(lgraph, inputLayer);
 
-encoderNames = cell(encoderDepth,1);
+encoderNames = cell(encoderDepth,);
 currentLayer = 'input';
 
 % 编码器
@@ -147,12 +147,12 @@ lgraph = connectLayers(lgraph, currentLayer, 'final_conv');
 % analyzeNetwork(lgraph);
 
 %% 5. 训练配置（关键修正）
-validationFrequency = 10; % 显式定义验证频率变量
+validationFrequency = ; % 显式定义验证频率变量
 
 options = trainingOptions('adam',...
     'InitialLearnRate', 1e-4,...
-    'MaxEpochs', 10,...
-    'MiniBatchSize', 4,...
+    'MaxEpochs', ,...
+    'MiniBatchSize', ,...
     'ValidationData', dsVal,...
     'ValidationFrequency', validationFrequency,... % 使用已定义变量
     'Plots', 'training-progress',...
@@ -439,3 +439,4 @@ function [lgraph, attOutName] = attentionGate(lgraph, xName, gName, F_g, F_l, bl
 
     attOutName = mulName;
 end
+
